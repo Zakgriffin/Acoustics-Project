@@ -1,6 +1,4 @@
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 
 import processing.core.PApplet;
 
@@ -33,7 +31,7 @@ public class Main extends PApplet {
 		new Wall(150, 225, 340, 225);
 		*/
 		
-		wave = new Arc(0.3f, 3 * PI / 2 - 0.4f);
+		wave = new Arc(0.3f, 3 * PI / 2 - 0.4f, null, null);
 		wave.setPos(new Point(250, 150));
 		
 		//new Wall(150, 400, 340, 350);
@@ -42,37 +40,27 @@ public class Main extends PApplet {
 	float mx = 0;
 	float my = 0;
 	float r;
-	
+	float time = 0;
 	public void draw() {
-		if(mouseX != mx || mouseY != my) {
-			background(200);
-			Wall.showWalls();
-			//Wall.updateWallsTo(wave.getPos());
-			
-			wave.setPos(mouseX, mouseY);
-			wave.show();
-			ArrayList<Arc> arcs = wave.generateArcs2();
-
-			pushStyle();
-				for(Arc arc: arcs) {
-					if(arc != null) {
-						if(arc.getWall() != null) {
-							int[] a = arc.getWall().color;
-							fill(a[0], a[1], a[2], 60);
-							stroke(a[0], a[1], a[2]);
-						} else {
-							noFill();
-							stroke(0);
-						}
-						arc(wave.getPos().getX(), wave.getPos().getY(), arc.perpDist * 2, arc.perpDist * 2, arc.getMinLim(), arc.getMaxLim(), PIE);
-					}
-				}
-			popStyle();
-			System.out.println("FPS: " + frameRate);
-			//noLoop();
+		time += 0.5;
+		if(time > 100) {
+			time = 0;
 		}
-		mx = mouseX;
-		my = mouseY;
+		background(200);
+		Wall.showWalls();
+		//Wall.updateWallsTo(wave.getPos());
+		
+		wave.setPos(mouseX, mouseY);
+		//wave.show();
+		ArrayList<Arc> arcs = wave.generateArcs2();
+
+		pushStyle();
+			for(Arc arc: arcs) {
+				arc.show(time);
+			}
+		popStyle();
+		System.out.println("FPS: " + frameRate);
+		//noLoop();
 		
 		
 		/*
