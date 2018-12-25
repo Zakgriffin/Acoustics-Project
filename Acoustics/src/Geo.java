@@ -173,6 +173,10 @@ public class Geo {
 			return null;
 		}
 	}
+	
+	public static boolean firstIsMin(float ang1, float ang2) {
+		return (Math.abs(ang1 - ang2) > Math.PI ^ ang1 - ang2 < 0);
+	}
 	/*
 	public static void main(String[] args) {
 		float a = (float) Math.toRadians(0);

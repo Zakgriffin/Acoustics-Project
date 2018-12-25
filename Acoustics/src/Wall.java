@@ -3,6 +3,9 @@ import java.util.ArrayList;
 import processing.core.PApplet;
 
 public class Wall {
+	
+	// Walls are objects that arcs can bounce off of. They are seen as line segments
+	
 	public static ArrayList<Wall> walls = new ArrayList<Wall>();
 	
 	private static PApplet p;

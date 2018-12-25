@@ -5,6 +5,9 @@ import processing.core.PApplet;
 import processing.core.PConstants;
 
 public class Arc {
+	
+	// Arcs are the visible shaped caused by pressure waves
+	
 	public static ArrayList<Arc> arcs = new ArrayList<Arc>();
 	
 	private static PApplet p;
@@ -44,43 +47,69 @@ public class Arc {
 	public static void setP(PApplet pa) {
 		p = pa;
 	}
-	public void update() {
-		//r += 2;
-	}
+	
 	public void show(float time) {
+		p.pushStyle();
 		if(wall != null) {
+			// reflective arc
+			
 			int[] a = wall.color;
-			//p.fill(a[0], a[1], a[2], 60);
-			p.noFill();
+			p.fill(a[0], a[1], a[2], 60);
+			//p.noFill();
 			p.stroke(a[0], a[1], a[2]);
-			if(rebound != null) {
-				if(time > perpDist) {
-					Point r = rebound;
-					float ang = wall.getAngle();
-					float min = Geo.angleBoost(maxAngLim, ang);
-					float max = Geo.angleBoost(minAngLim, ang);
-					if(min > max) {
-						max += 2 * Math.PI;
-					}
-					p.arc(r.x, r.y, time * 2, time * 2, min, max, PConstants.PIE);
-					p.ellipse(r.x, r.y, 5, 5);
-				} else {
-					p.arc(pos.x, pos.y, time * 2, time * 2, minAngLim, maxAngLim, PConstants.PIE);
-				}
-			}
-			Point[] inters = Geo.segCircIntersects(wall.getPoint1(), wall.getPoint2(), pos, time);
-			if(inters != null) {
+			if(time <= perpDist) {
+				// simple, draw arc
+				p.arc(pos.x, pos.y, time * 2, time * 2, minAngLim, maxAngLim);
+			} else {
+				// find intersection points and draw seperate arc pieces
+				Point[] inters = Geo.segCircIntersects(wall.getPoint1(), wall.getPoint2(), pos, time);
 				for(Point inter: inters) {
-					p.ellipse(inter.x, inter.y, 5, 5);
+					//p.ellipse(inter.x, inter.y, 5, 5);
+				}
+				float minAng = pos.angleTo(inters[0]);
+				float maxAng = pos.angleTo(inters[1]);
+				if(Geo.firstIsMin(maxAng, minAng)) {
+					float temp = minAng;
+					minAng = maxAng;
+					maxAng = temp;
+				}
+				if(Geo.angleFallsIn(minAng, minAngLim, maxAngLim)) {
+					p.arc(pos.x, pos.y, time * 2, time * 2, minAngLim, minAng);
+				}
+				if(Geo.angleFallsIn(maxAng, minAngLim, maxAngLim)) {
+					p.arc(pos.x, pos.y, time * 2, time * 2, maxAng, maxAngLim);
 				}
 			}
 		} else {
+			// passing arc
 			p.noFill();
 			p.stroke(0);
+			p.arc(pos.x, pos.y, time * 2, time * 2, minAngLim, maxAngLim);
+		}
+		p.popStyle();
+		
+		
+		/*
+		if(rebound != null) {
+			
+			if(time > perpDist) {
+				Point r = rebound;
+				float ang = wall.getAngle();
+				float min = Geo.angleBoost(maxAngLim, ang);
+				float max = Geo.angleBoost(minAngLim, ang);
+				if(min > max) {
+					max += 2 * Math.PI;
+				}
+				p.arc(r.x, r.y, time * 2, time * 2, min, max, PConstants.PIE);
+				p.ellipse(r.x, r.y, 5, 5);
+			} else {
+				
+			}
 			p.arc(pos.x, pos.y, time * 2, time * 2, minAngLim, maxAngLim, PConstants.PIE);
 		}
+		*/
 	}
-
+	
 	public ArrayList<Arc> generateArcs2() {
 		ArrayList<AngVect> angs = new ArrayList<AngVect>();
 		ArrayList<AngVect> started = new ArrayList<AngVect>();
@@ -98,7 +127,7 @@ public class Arc {
 			float angleTo1 = pos.angleTo(p1);
 			float angleTo2 = pos.angleTo(p2);
 			//                     haha, I used an XOR v
-			if(Math.abs(angleTo1 - angleTo2) > Math.PI ^ angleTo1 - angleTo2 < 0) {
+			if(Geo.firstIsMin(angleTo1, angleTo2)) {
 				pMin = p1;
 				pMax = p2;
 				angleToMin = angleTo1;
@@ -217,7 +246,7 @@ public class Arc {
 		} else {
 			subArcs.add(new Arc(lastAngle, maxAngLim, lastAngVect.wall, pos));
 		}
-		System.out.println("Count: " + subArcs.size());
+		//System.out.println("Count: " + subArcs.size());
 		//System.out.println("Final: " + subArcs.toString());
 		return subArcs;
 	}

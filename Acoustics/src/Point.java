@@ -1,4 +1,7 @@
 public class Point {
+	
+	// A simple class for points. Can hold and do basic things with x and y values
+	
 	public float x;
 	public float y;
 	
