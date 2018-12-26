@@ -33,6 +33,10 @@ public class Point {
 		return Geo.boost(this, p);
 	}
 	
+	public boolean fallsWithin(Point p1, Point p2) {
+		return Geo.pointFallsWithin(this, p1, p2);
+	}
+	
 	public String toString() {
 		return "(" + x + ", " + y + ")";
 	}

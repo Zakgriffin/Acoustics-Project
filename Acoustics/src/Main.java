@@ -1,6 +1,7 @@
 import java.util.ArrayList;
 
 import processing.core.PApplet;
+import processing.event.MouseEvent;
 
 public class Main extends PApplet {
 	Arc wave;
@@ -37,26 +38,46 @@ public class Main extends PApplet {
 		//new Wall(150, 400, 340, 350);
 	}
 	
-	float mx = 0;
-	float my = 0;
-	float r;
 	float time = 0;
-	
+	float offset = 1f;
 	public void draw() {
 		background(200);
-		time += 0.3;
+		//strokeWeight(3);
+		if(keyPressed) {
+			if (key == 'w') {
+				println("w");
+				time += offset;
+			} else if(key == 's') {
+				println("s");
+				time -= offset;
+			}
+			if(time < 0) {
+				time = 0;
+			}
+		}
 		Wall.showWalls();
 		
 		wave.setPos(mouseX, mouseY);
-		ArrayList<Arc> arcs = wave.generateArcs2();
-
+		ArrayList<Arc> arcs = wave.generateArcs();
+		pushStyle();
+			fill(0, 150);
+			arc(wave.getPos().x, wave.getPos().y, 30, 30, wave.getMaxLim() - TWO_PI, wave.getMinLim());
+		popStyle();
 		for(Arc arc: arcs) {
 			arc.show(time);
 		}
 		//System.out.println("FPS: " + frameRate);
+		
 	}
 	
 	public void mouseClicked() {
 		time = 0;
+	}
+	public void mouseWheel(MouseEvent event) {
+		float e = event.getCount();
+		time -= e;
+		if(time < 0) {
+			time = 0;
+		}
 	}
 }

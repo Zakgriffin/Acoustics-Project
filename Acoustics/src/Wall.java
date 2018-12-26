@@ -59,6 +59,9 @@ public class Wall {
 	public Point getPoint2() {
 		return point2;
 	}
+	public Point[] getPoints() {
+		return new Point[] {point1, point2};
+	}
 	public float getAngle() {
 		return angle;
 	}

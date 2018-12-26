@@ -50,15 +50,10 @@ public class Geo {
 	
 	public static float raySegDist(Point ray1, Point rayThru, Point seg1, Point seg2, boolean simp) {
 		// Returns distance between intersection point of a ray and line segment
-		float mRay = slope(ray1, rayThru);
-		float mSeg = slope(seg1, seg2);
-		
-		// x and y of intersection point
-		float interX = (mRay * ray1.x - mSeg * seg1.x - ray1.y + seg1.y) / (mRay - mSeg);
-		float interY = mRay * (interX - ray1.x) /* + ray1.y*/; // added
-		
-		float deltaX = interX - ray1.x;
-		float deltaY = interY /* - ray1.y*/; // immediately subtracted
+
+		Point inter = raySegIntersect(ray1, rayThru, seg1, seg2);
+		float deltaX = inter.x - ray1.x;
+		float deltaY = inter.y - ray1.y;
 		
 		float distSimp = deltaX * deltaX + deltaY * deltaY;
 		if(simp) {
@@ -71,6 +66,29 @@ public class Geo {
 	}
 	public static float raySegDist(Point ray1, Point rayThru, Point seg1, Point seg2) {
 		return raySegDist(ray1, rayThru, seg1, seg2, false);
+	}
+	
+	public static Point raySegIntersect(Point ray1, Point rayThru, Point seg1, Point seg2) {
+		// Returns the intersection point of a ray and line segment
+		float mRay = slope(ray1, rayThru);
+		float mSeg = slope(seg1, seg2);
+		
+		// x and y of intersection point
+		float interX = (mRay * ray1.x - mSeg * seg1.x - ray1.y + seg1.y) / (mRay - mSeg);
+		float interY = mRay * (interX - ray1.x) + ray1.y;
+		
+		return new Point(interX, interY);
+	}
+	public static Point raySegIntersect(Point ray1, float rayAng, Point seg1, Point seg2) {
+		// Returns the intersection point of a ray and line segment
+		float mRay = (float) Math.tan(rayAng);
+		float mSeg = slope(seg1, seg2);
+		
+		// x and y of intersection point
+		float interX = (mRay * ray1.x - mSeg * seg1.x - ray1.y + seg1.y) / (mRay - mSeg);
+		float interY = mRay * (interX - ray1.x) + ray1.y;
+		
+		return new Point(interX, interY);
 	}
 	
 	public static boolean angleFallsIn(float testAngle, float min, float max) {
@@ -177,12 +195,45 @@ public class Geo {
 	public static boolean firstIsMin(float ang1, float ang2) {
 		return (Math.abs(ang1 - ang2) > Math.PI ^ ang1 - ang2 < 0);
 	}
+	
+	public static boolean pointFallsWithin(Point pCheck, Point p1, Point p2) {
+		if(p1.x - pCheck.x > 0 ^ p2.x - pCheck.x > 0) {
+			// falls in x boundary
+			if(p1.y - pCheck.y > 0 ^ p2.y - pCheck.y > 0) {
+				// falls in y boundary
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	public static boolean rectIntersect(Point p1, Point p2, Point q1, Point q2) {
+		float pMin = Math.min(p1.x, p2.x);
+		float pMax = Math.max(p1.x, p2.x);
+		float qMin = Math.min(q1.x, q2.x);
+		float qMax = Math.max(q1.x, q2.x);
+		if(pMin > qMax || qMin > pMax) {
+			return false; 
+		}
+		
+		pMin = Math.min(p1.y, p2.y);
+		pMax = Math.max(p1.y, p2.y);
+		qMin = Math.min(q1.y, q2.y);
+		qMax = Math.max(q1.y, q2.y);
+		if(pMin > qMax || qMin > pMax) {
+			return false; 
+		}
+		
+		return true;
+	}
 	/*
 	public static void main(String[] args) {
-		float a = (float) Math.toRadians(0);
-		float b = (float) Math.toRadians(225);
+		Point a = new Point(1, 2);
+		Point b = new Point(4, 5);
+		Point c = new Point(3, 4);
 		
-		System.out.println(Math.toDegrees(angleBoost(a, b)));
+		System.out.println(c.fallsWithin(a, b));
 	}
 	*/
+	
 }

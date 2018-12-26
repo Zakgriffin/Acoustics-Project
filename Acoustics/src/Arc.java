@@ -6,7 +6,7 @@ import processing.core.PConstants;
 
 public class Arc {
 	
-	// Arcs are the visible shaped caused by pressure waves
+	// Arcs are the visible shapes caused by pressure waves
 	
 	public static ArrayList<Arc> arcs = new ArrayList<Arc>();
 	
@@ -57,28 +57,51 @@ public class Arc {
 			p.fill(a[0], a[1], a[2], 60);
 			//p.noFill();
 			p.stroke(a[0], a[1], a[2]);
-			if(time <= perpDist) {
+			
+			// get the intersection points between walls and arcs
+			Point[] inters = Geo.segCircIntersects(wall.getPoint1(), wall.getPoint2(), pos, time);
+			
+			if(inters == null || !Geo.rectIntersect(wall.getPoint1(), wall.getPoint2(), inters[0], inters[1])) {
 				// simple, draw arc
 				p.arc(pos.x, pos.y, time * 2, time * 2, minAngLim, maxAngLim);
 			} else {
-				// find intersection points and draw seperate arc pieces
-				Point[] inters = Geo.segCircIntersects(wall.getPoint1(), wall.getPoint2(), pos, time);
-				for(Point inter: inters) {
-					//p.ellipse(inter.x, inter.y, 5, 5);
+				// arc is split into 3 pieces: 2 small arcs, 1 triangle
+				Point pMin = inters[0];
+				Point pMax = inters[1];
+				
+				for(Point i: inters) {
+					//p.ellipse(i.x, i.y, 5, 5);
 				}
-				float minAng = pos.angleTo(inters[0]);
-				float maxAng = pos.angleTo(inters[1]);
+				
+				float minAng = pos.angleTo(pMin);
+				float maxAng = pos.angleTo(pMax);
 				if(Geo.firstIsMin(maxAng, minAng)) {
-					float temp = minAng;
+					// flip points and angles if reversed
+					float tempA = minAng;
 					minAng = maxAng;
-					maxAng = temp;
+					maxAng = tempA;
+					Point tempP = pMin;
+					pMin = pMax;
+					pMax = tempP;
 				}
 				if(Geo.angleFallsIn(minAng, minAngLim, maxAngLim)) {
+					// ensure intersection point is touching wall
 					p.arc(pos.x, pos.y, time * 2, time * 2, minAngLim, minAng);
+				} else {
+					// if not, don't draw arc part and make triangle use wall end point
+					pMin = Geo.raySegIntersect(pos, minAngLim, wall.getPoint1(), wall.getPoint2());
 				}
+				// repeat ^
 				if(Geo.angleFallsIn(maxAng, minAngLim, maxAngLim)) {
 					p.arc(pos.x, pos.y, time * 2, time * 2, maxAng, maxAngLim);
+				} else {
+					pMax = Geo.raySegIntersect(pos, maxAngLim, wall.getPoint1(), wall.getPoint2());
 				}
+				
+				p.pushStyle();
+					p.noStroke();
+					p.triangle(pMin.x, pMin.y, pMax.x, pMax.y, pos.x, pos.y);
+				p.popStyle();
 			}
 		} else {
 			// passing arc
@@ -110,7 +133,7 @@ public class Arc {
 		*/
 	}
 	
-	public ArrayList<Arc> generateArcs2() {
+	public ArrayList<Arc> generateArcs() {
 		ArrayList<AngVect> angs = new ArrayList<AngVect>();
 		ArrayList<AngVect> started = new ArrayList<AngVect>();
 		
