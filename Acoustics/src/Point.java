@@ -16,6 +16,16 @@ public class Point {
 	public void addY(float y) {
 		this.y += y;
 	}
+	public void add(float x, float y) {
+		this.x += x;
+		this.y += y;
+	}
+	
+	public void set(Point p) {
+		this.x = p.x;
+		this.y = p.y;
+	}
+	
 	
 	public float slopeWith(Point p) {
 		return Geo.slope(this, p);

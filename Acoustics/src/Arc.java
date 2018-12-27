@@ -22,26 +22,21 @@ public class Arc {
 	
 	private Wall wall;
 	
-	public Arc(float minAngLim, float maxAngLim, Wall wall, Point source, String type) {
+	public Arc(float minAngLim, float maxAngLim, Wall wall, Point pos, String type) {
 		this.minAngLim = minAngLim;
 		this.maxAngLim = maxAngLim;
 		this.wall = wall;
-		this.pos = source;
+		this.pos = pos;
 		this.type = type;
-		if(wall != null) {
-			perpDist = pos.distanceTo(wall.getPerpPoint(pos));
-		} else {
-			perpDist = 100;
-		}
 		if(type.equals("passing")) {
 			this.rebound = null;
-		} else if(wall != null) {
-			this.rebound = Geo.boost(pos, wall.getPerpPoint(source));
+		} else {
+			this.rebound = Geo.boost(pos, wall.getPerpPoint(pos));
 		}
 		//arcs.add(this);
 	}
-	public Arc(float minAngLim, float maxAngLim, Wall wall, Point source) {
-		this(minAngLim, maxAngLim, wall, source, "");
+	public Arc(float minAngLim, float maxAngLim, Wall wall, Point pos) {
+		this(minAngLim, maxAngLim, wall, pos, "");
 	}
 	
 	public static void setP(PApplet pa) {
@@ -50,7 +45,7 @@ public class Arc {
 	
 	public void show(float time) {
 		p.pushStyle();
-		if(wall != null) {
+		if(!type.equals("passing")) {
 			// reflective arc
 			
 			int[] a = wall.color;
@@ -61,29 +56,28 @@ public class Arc {
 			// get the intersection points between walls and arcs
 			Point[] inters = Geo.segCircIntersects(wall.getPoint1(), wall.getPoint2(), pos, time);
 			
-			if(inters == null || !Geo.rectIntersect(wall.getPoint1(), wall.getPoint2(), inters[0], inters[1])) {
-				// simple, draw arc
+			boolean simpleArc = true;
+			if(inters != null) {
+				// points on wall visible to pos
+				Point[] visPoints = new Point[2];
+				visPoints[0] = Geo.raySegIntersect(pos, minAngLim, wall.getPoints());
+				visPoints[1] = Geo.raySegIntersect(pos, maxAngLim, wall.getPoints());
+				if(Geo.rectIntersect(visPoints, inters)) {
+					simpleArc = false;
+				}
+			}
+			
+			if(simpleArc) {
+				// arc has no interaction with wall and can be rendered simply
 				p.arc(pos.x, pos.y, time * 2, time * 2, minAngLim, maxAngLim);
 			} else {
 				// arc is split into 3 pieces: 2 small arcs, 1 triangle
-				Point pMin = inters[0];
-				Point pMax = inters[1];
+				AngVect[] limits = orderMinMax(inters, pos);
+				Point pMin = limits[0].pos;
+				Point pMax = limits[1].pos;
+				float minAng = limits[0].angle;
+				float maxAng = limits[1].angle;
 				
-				for(Point i: inters) {
-					//p.ellipse(i.x, i.y, 5, 5);
-				}
-				
-				float minAng = pos.angleTo(pMin);
-				float maxAng = pos.angleTo(pMax);
-				if(Geo.firstIsMin(maxAng, minAng)) {
-					// flip points and angles if reversed
-					float tempA = minAng;
-					minAng = maxAng;
-					maxAng = tempA;
-					Point tempP = pMin;
-					pMin = pMax;
-					pMax = tempP;
-				}
 				if(Geo.angleFallsIn(minAng, minAngLim, maxAngLim)) {
 					// ensure intersection point is touching wall
 					p.arc(pos.x, pos.y, time * 2, time * 2, minAngLim, minAng);
@@ -106,7 +100,7 @@ public class Arc {
 		} else {
 			// passing arc
 			p.noFill();
-			p.stroke(0);
+			p.stroke(255);
 			p.arc(pos.x, pos.y, time * 2, time * 2, minAngLim, maxAngLim);
 		}
 		p.popStyle();
@@ -133,7 +127,43 @@ public class Arc {
 		*/
 	}
 	
-	public ArrayList<Arc> generateArcs() {
+	private AngVect[] orderMinMax(Point[] unorg, Point view) {
+		Point pMin = unorg[0];
+		Point pMax = unorg[1];
+		float minAng = pos.angleTo(pMin);
+		float maxAng = pos.angleTo(pMax);
+		
+		if(Geo.firstIsMin(maxAng, minAng)) {
+			// flip points and angles if reversed
+			float tempA = minAng;
+			minAng = maxAng;
+			maxAng = tempA;
+			Point tempP = pMin;
+			pMin = pMax;
+			pMax = tempP;
+		}
+		
+		AngVect min = new AngVect(pMin, minAng, true);
+		AngVect max = new AngVect(pMax, maxAng, false);
+		return new AngVect[] {min, max};
+	}
+	public ArrayList<Arc> generateArcs(String mode) {
+		Point oldPos = pos;
+		float oldMinAngLim = minAngLim;
+		float oldMaxAngLim = maxAngLim;
+		
+		boolean tempSource = !mode.equals("source") && !type.equals("passing");
+		
+		if(tempSource) {
+			// TEMP
+			pos = Geo.boost(pos, wall.getPerpPoint(pos));
+			minAngLim = Geo.angleBoost(maxAngLim, wall.getAngle());
+			maxAngLim = Geo.angleBoost(minAngLim, wall.getAngle());
+			if(maxAngLim < minAngLim) {
+				maxAngLim += Math.PI * 2;
+			}
+		}
+		
 		ArrayList<AngVect> angs = new ArrayList<AngVect>();
 		ArrayList<AngVect> started = new ArrayList<AngVect>();
 		
@@ -185,11 +215,14 @@ public class Arc {
 		}
 		ArrayList<Arc> subArcs = new ArrayList<Arc>();
 		if(angs.size() == 0) {
+			// only single arc
 			if(started.size() > 0) {
+				// reflective arc
 				AngVect best = findBest(started, minAngLim);
 				subArcs.add(new Arc(minAngLim, maxAngLim, best.wall, pos));
 			} else {
-				subArcs.add(new Arc(minAngLim, maxAngLim, null, pos));
+				// passing arc
+				subArcs.add(new Arc(minAngLim, maxAngLim, null, pos, "passing"));
 			}
 			return subArcs;
 		}
@@ -203,13 +236,14 @@ public class Arc {
 		float lastAngle;
 		int i;
 		if(started.size() > 0) {
+			// generate new reflective arc and start at angs[0]
 			AngVect best = findBest(started, minAngLim);
 			lastAngVect = best.linkAngVect;
 			lastAngle = minAngLim;
 			i = 0;
 		} else {
-			// generate new arc and start at angs[0]
-			subArcs.add(new Arc(minAngLim, first.angle, null, pos));
+			// generate new passing arc and start at angs[1]
+			subArcs.add(new Arc(minAngLim, first.angle, null, pos, "passing"));
 			lastAngle = first.angle;
 			lastAngVect = first;
 			i = 1;
@@ -236,7 +270,6 @@ public class Arc {
 				if(best != null) {
 					// found winning candidate wall
 					lastAngVect = best.linkAngVect;
-					//i++;
 				} else {
 					// never found any candidate walls
 					// ADD STUFF FOR NON REFLECTIONS
@@ -246,7 +279,7 @@ public class Arc {
 					}
 					// create the passing arc in addition to the first
 					AngVect nextAngVect = angs.get(i + 1);
-					Arc passingArc = new Arc(lastAngle, nextAngVect.angle, null, pos);
+					Arc passingArc = new Arc(lastAngle, nextAngVect.angle, null, pos, "passing");
 					
 					subArcs.add(passingArc);
 					
@@ -265,12 +298,20 @@ public class Arc {
 			}
 		}
 		if(Geo.angleFallsIn(lastAngVect.linkAngVect.angle, minAngLim, maxAngLim)) {
-			subArcs.add(new Arc(lastAngle, maxAngLim, null, this.pos));
+			subArcs.add(new Arc(lastAngle, maxAngLim, null, this.pos, "passing"));
 		} else {
 			subArcs.add(new Arc(lastAngle, maxAngLim, lastAngVect.wall, pos));
 		}
 		//System.out.println("Count: " + subArcs.size());
 		//System.out.println("Final: " + subArcs.toString());
+		
+		if(tempSource) {
+			// TEMP
+			pos = oldPos;
+			minAngLim = oldMinAngLim;
+			maxAngLim = oldMaxAngLim;
+		}
+		
 		return subArcs;
 	}
 	
