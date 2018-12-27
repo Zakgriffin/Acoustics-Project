@@ -89,6 +89,12 @@ public class Wall {
 					p.fill(color[0], color[1], color[2]);
 					p.ellipse(point.x, point.y, 10, 10);
 				p.popStyle();
+				
+				if(key == 'x') {
+					walls.set(walls.indexOf(this), null);
+				} else if(key == 'f') {
+					System.out.println("Wall ID: " + walls.indexOf(this));
+				}
 			}
 		}
 	}
@@ -96,6 +102,7 @@ public class Wall {
 		for(Wall wall: walls) {
 			wall.update();
 		}
+		walls.remove(null);
 	}
 	
 	public Point getPerpPoint(Point v) {
@@ -114,9 +121,10 @@ public class Wall {
 	public float getAngle() {
 		return angle;
 	}
-
+	static char key;
 	static boolean qHeld = false;
 	public static void keyPressed(char key) {
+		Wall.key = key;
 		if(key == 'q') {
 			if(!qHeld) {
 				float x = p.mouseX;

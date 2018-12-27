@@ -234,22 +234,22 @@ public class Arc {
 		AngVect first = angs.get(0);
 		AngVect lastAngVect;
 		float lastAngle;
-		int i;
+		int startAt;
 		if(started.size() > 0) {
 			// generate new reflective arc and start at angs[0]
 			AngVect best = findBest(started, minAngLim);
 			lastAngVect = best.linkAngVect;
 			lastAngle = minAngLim;
-			i = 0;
+			startAt = 0;
 		} else {
 			// generate new passing arc and start at angs[1]
 			subArcs.add(new Arc(minAngLim, first.angle, null, pos, "passing"));
 			lastAngle = first.angle;
 			lastAngVect = first;
-			i = 1;
+			startAt = 1;
 		}
 		
-		for(; i < angs.size(); i++) {
+		for(int i = startAt; i < angs.size(); i++) {
 			AngVect ang = angs.get(i); // <-- possible arc edge
 			if(ang.isMin) {
 				// began new wall
@@ -272,7 +272,6 @@ public class Arc {
 					lastAngVect = best.linkAngVect;
 				} else {
 					// never found any candidate walls
-					// ADD STUFF FOR NON REFLECTIONS
 					if(i + 1 >= angs.size()) {
 						break;
 						// already at end loop, end all

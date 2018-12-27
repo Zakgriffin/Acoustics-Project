@@ -31,9 +31,6 @@ public class AngVect implements Comparable<AngVect>{
 
 	@Override
 	public int compareTo(AngVect o) {
-		if(o.angle == angle) {
-			return 0;
-		}
 		return Float.compare(angle, o.angle);
 	}
 }
