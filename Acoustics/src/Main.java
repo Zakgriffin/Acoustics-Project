@@ -34,7 +34,7 @@ public class Main extends PApplet {
 		new Wall(150, 225, 340, 225);
 		*/
 		
-		wave = new Arc(0.3f, 3 * PI / 2 - 0.4f, null, null, "passing");
+		wave = new Arc(0.3f, 3 * PI / 2 - 0.4f, null);
 		wave.setPos(new Point(250, 150));
 		
 		//new Wall(150, 400, 340, 350);
@@ -69,6 +69,7 @@ public class Main extends PApplet {
 			fill(255, 150);
 			stroke(255);
 			arc(wave.getPos().x, wave.getPos().y, 30, 30, wave.getMaxLim() - TWO_PI, wave.getMinLim());
+			
 		popStyle();
 		for(Arc arc: arcs) {
 			arc.show(time);

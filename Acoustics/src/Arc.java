@@ -6,7 +6,7 @@ import processing.core.PConstants;
 
 public class Arc {
 	
-	// Arcs are the visible shapes caused by pressure waves
+	// Arcs are used to visualize pressure waves
 	
 	public static ArrayList<Arc> arcs = new ArrayList<Arc>();
 	
@@ -39,6 +39,10 @@ public class Arc {
 		this(minAngLim, maxAngLim, wall, pos, "");
 	}
 	
+	public Arc(float minAngLim, float maxAngLim, Point pos) {
+		this(minAngLim, maxAngLim, null, pos, "passing");
+	}
+	
 	public static void setP(PApplet pa) {
 		p = pa;
 	}
@@ -60,14 +64,14 @@ public class Arc {
 			if(inters != null) {
 				// points on wall visible to pos
 				Point[] visPoints = new Point[2];
-				visPoints[0] = Geo.raySegIntersect(pos, minAngLim, wall.getPoints());
-				visPoints[1] = Geo.raySegIntersect(pos, maxAngLim, wall.getPoints());
+				visPoints[0] = Geo.raySegIntersect(pos, minAngLim, wall.getPoints(), true);
+				visPoints[1] = Geo.raySegIntersect(pos, maxAngLim, wall.getPoints(), true);
 				if(Geo.rectIntersect(visPoints, inters)) {
 					simpleArc = false;
 				}
 			}
 			
-			if(simpleArc) {
+			if(simpleArc) {//simpleArc
 				// arc has no interaction with wall and can be rendered simply
 				p.arc(pos.x, pos.y, time * 2, time * 2, minAngLim, maxAngLim);
 			} else {
@@ -83,13 +87,13 @@ public class Arc {
 					p.arc(pos.x, pos.y, time * 2, time * 2, minAngLim, minAng);
 				} else {
 					// if not, don't draw arc part and make triangle use wall end point
-					pMin = Geo.raySegIntersect(pos, minAngLim, wall.getPoint1(), wall.getPoint2());
+					pMin = Geo.raySegIntersect(pos, minAngLim, wall.getPoints(), true);
 				}
 				// repeat ^
 				if(Geo.angleFallsIn(maxAng, minAngLim, maxAngLim)) {
 					p.arc(pos.x, pos.y, time * 2, time * 2, maxAng, maxAngLim);
 				} else {
-					pMax = Geo.raySegIntersect(pos, maxAngLim, wall.getPoint1(), wall.getPoint2());
+					pMax = Geo.raySegIntersect(pos, maxAngLim, wall.getPoints(), true);
 				}
 				
 				p.pushStyle();
@@ -127,7 +131,7 @@ public class Arc {
 		*/
 	}
 	
-	private AngVect[] orderMinMax(Point[] unorg, Point view) {
+	private AngVect[] orderMinMax(Point[] unorg, Point view, Wall wall) {
 		Point pMin = unorg[0];
 		Point pMax = unorg[1];
 		float minAng = pos.angleTo(pMin);
@@ -143,11 +147,23 @@ public class Arc {
 			pMax = tempP;
 		}
 		
-		AngVect min = new AngVect(pMin, minAng, true);
-		AngVect max = new AngVect(pMax, maxAng, false);
+		AngVect min = new AngVect(pMin, minAng, wall, true);
+		AngVect max = new AngVect(pMax, maxAng, wall, false);
+		
+		// set linked references to each other
+		min.link = max;
+		max.link = min;
 		return new AngVect[] {min, max};
 	}
+	private AngVect[] orderMinMax(Point[] unorg, Point view) {
+		return orderMinMax(unorg, view, null);
+	}
+	private AngVect[] orderMinMax(Wall wall, Point view) {
+		return orderMinMax(wall.getPoints(), view, wall);
+	}
+	
 	public ArrayList<Arc> generateArcs(String mode) {
+		/*  IGNORE THIS
 		Point oldPos = pos;
 		float oldMinAngLim = minAngLim;
 		float oldMaxAngLim = maxAngLim;
@@ -163,154 +179,125 @@ public class Arc {
 				maxAngLim += Math.PI * 2;
 			}
 		}
+		*/
 		
 		ArrayList<AngVect> angs = new ArrayList<AngVect>();
 		ArrayList<AngVect> started = new ArrayList<AngVect>();
 		
 		for(Wall wall: Wall.walls) {
-			Point p1 = wall.getPoint1();
-			Point p2 = wall.getPoint2();
+			// create and add all AngVects to angs and started lists
+			AngVect[] wallPoints = orderMinMax(wall, pos);
+			AngVect min = wallPoints[0];
+			AngVect max = wallPoints[1];
 			
-			Point pMax;
-			Point pMin;
-			float angleToMin;
-			float angleToMax;
-			
-			// determine which is max and min
-			float angleTo1 = pos.angleTo(p1);
-			float angleTo2 = pos.angleTo(p2);
-			//                     haha, I used an XOR v
-			if(Geo.firstIsMin(angleTo1, angleTo2)) {
-				pMin = p1;
-				pMax = p2;
-				angleToMin = angleTo1;
-				angleToMax = angleTo2;
-			} else {
-				pMin = p2;
-				pMax = p1;
-				angleToMin = angleTo2;
-				angleToMax = angleTo1;
+			if(Geo.angleFallsIn(min.angle, minAngLim, maxAngLim)) {
+				angs.add(min);
 			}
 			
-			angleToMin = pos.angleTo(pMin);
-			angleToMax = pos.angleTo(pMax);
-			AngVect minAngVect = new AngVect(pMin, angleToMin, wall, true);
-			AngVect maxAngVect = new AngVect(pMax, angleToMax, wall, false);
-			minAngVect.setLink(maxAngVect);
-			maxAngVect.setLink(minAngVect);
-			
-			if(Geo.angleFallsIn(angleToMin, minAngLim, maxAngLim)) {
-				angs.add(minAngVect);
+			if(Geo.angleFallsIn(max.angle, minAngLim, maxAngLim)) {
+				angs.add(max);
 			}
 			
-			if(Geo.angleFallsIn(angleToMax, minAngLim, maxAngLim)) {
-				angs.add(maxAngVect);
+			// wall crosses over minAngLim
+			if(Geo.angleFallsIn(minAngLim, min.angle, max.angle)) {
+				started.add(min);
 			}
-			
-			//left side of of wall is before start and right side is after
-			if(Geo.angleFallsIn(minAngLim, angleToMin, angleToMax)) {
-				started.add(maxAngVect);
-			}
-			//p.ellipse(minAngVect.pos.x, minAngVect.pos.y, 5, 5);
 		}
 		ArrayList<Arc> subArcs = new ArrayList<Arc>();
-		if(angs.size() == 0) {
-			// only single arc
-			if(started.size() > 0) {
-				// reflective arc
-				AngVect best = findBest(started, minAngLim);
-				subArcs.add(new Arc(minAngLim, maxAngLim, best.wall, pos));
-			} else {
-				// passing arc
-				subArcs.add(new Arc(minAngLim, maxAngLim, null, pos, "passing"));
-			}
-			return subArcs;
-		}
 		Collections.sort(angs);
-		// rotate all AngVects so starts with right after min and ends before max
+		// rotate angs list to start after minAngLim and end before maxAngLim
 		Collections.rotate(angs, getRotatePoint(angs));
 		
-		//add first arc touching min lim
-		AngVect first = angs.get(0);
-		AngVect lastAngVect;
-		float lastAngle;
-		int startAt;
-		if(started.size() > 0) {
-			// generate new reflective arc and start at angs[0]
-			AngVect best = findBest(started, minAngLim);
-			lastAngVect = best.linkAngVect;
+		AngVect current; // <-- currently selected min AngVect on sweep
+		float lastAngle; // <-- used to form max angle of last sub arc and min of the next
+
+		int startAt; // <-- first index to check against. used to init for loop
+		if(started.size() == 0) {
+			if(angs.size() == 0) {
+				// sub arcs is only this arc. End and return here
+				subArcs.add(this);
+				return subArcs;
+			} else {
+				// first subarc will be passing. From minAngLim to first in angs
+				subArcs.add(new Arc(minAngLim, angs.get(0).angle, pos));
+				current = angs.get(0);
+				lastAngle = current.angle;
+				startAt = 1;
+				started.add(current); // add to started since it was skipped
+			}
+		} else {
+			// set current to AngVect closest to pos
+			current = findBest(started, minAngLim, true);
 			lastAngle = minAngLim;
 			startAt = 0;
-		} else {
-			// generate new passing arc and start at angs[1]
-			subArcs.add(new Arc(minAngLim, first.angle, null, pos, "passing"));
-			lastAngle = first.angle;
-			lastAngVect = first;
-			startAt = 1;
 		}
-		
+
 		for(int i = startAt; i < angs.size(); i++) {
-			AngVect ang = angs.get(i); // <-- possible arc edge
-			if(ang.isMin) {
+			// cycle through all in angs: sweep check
+			AngVect check = angs.get(i); // <-- current AngVect to check
+			if(check.isMin) {
 				// began new wall
-				started.add(ang.linkAngVect);
+				started.add(check);
 			} else {
 				// hit end of some wall
-				started.remove(ang);
+				started.remove(check.link);
 			}
 			
-			if(ang == lastAngVect.linkAngVect) {
-				// stop searching for interrupt points, got to end
-				AngVect best = findBest(started, ang.pos);
+			if(check == current.link) {
+				// got to end of current wall
 				
 				// add arc before fall
-				subArcs.add(new Arc(lastAngle, ang.angle, ang.wall, pos));
-				lastAngle = ang.angle;
-				
-				if(best != null) {
-					// found winning candidate wall
-					lastAngVect = best.linkAngVect;
-				} else {
-					// never found any candidate walls
-					if(i + 1 >= angs.size()) {
-						break;
-						// already at end loop, end all
-					}
-					// create the passing arc in addition to the first
-					AngVect nextAngVect = angs.get(i + 1);
-					Arc passingArc = new Arc(lastAngle, nextAngVect.angle, null, pos, "passing");
-					
-					subArcs.add(passingArc);
-					
-					lastAngVect = nextAngVect;
-					lastAngle = nextAngVect.angle;
-					// increase index again since two arcs made
-					i++;
+				subArcs.add(new Arc(lastAngle, check.angle, check.wall, pos));
+				lastAngle = check.angle;
+				if(i == angs.size() - 1) {
+					break;
 				}
-				// end of drop wall and passing arc type
-			} else if(ang.isMin && !Geo.intersects(lastAngVect.pos, lastAngVect.linkAngVect.pos, pos, ang.pos)) {
-				subArcs.add(new Arc(lastAngle, ang.angle, lastAngVect.wall, pos));
-				lastAngle = ang.angle;
-				
-				lastAngVect = ang;
-				// end of interrupt wall type
+				AngVect best = findBest(started, check.pos.slopeWith(pos));
+				if(best != null) {
+					// found wall to set current to
+					current = best;
+					// END OF drop wall type, continue;
+				} else {
+					// no wall to drop to, create passing arc in addition to the first
+					AngVect nextAngVect = angs.get(i + 1);
+					subArcs.add(new Arc(lastAngle, nextAngVect.angle, pos));
+					
+					current = nextAngVect;
+					lastAngle = nextAngVect.angle;
+					// increase index again since two arcs were made
+					i++;
+					started.add(angs.get(i)); // add to started since it was skipped
+					// END OF drop wall with passing arc type, continue;
+				}
+			} else if(check.isMin) {
+				// check is a possible interrupt
+				if(!current.wall.intersects(pos, check.pos)) {
+					// check is interrupt
+					subArcs.add(new Arc(lastAngle, check.angle, current.wall, pos));
+					current = check;
+					lastAngle = check.angle;
+					// END OF interrupt wall type, continue;
+				}
 			}
 		}
-		if(Geo.angleFallsIn(lastAngVect.linkAngVect.angle, minAngLim, maxAngLim)) {
-			subArcs.add(new Arc(lastAngle, maxAngLim, null, this.pos, "passing"));
+		// add final arc completing the sweep
+		AngVect best = findBest(started, maxAngLim, true);
+		if(best != null) {
+			// reflective arc
+			subArcs.add(new Arc(lastAngle, maxAngLim, best.wall, pos));
 		} else {
-			subArcs.add(new Arc(lastAngle, maxAngLim, lastAngVect.wall, pos));
+			// passing arc
+			subArcs.add(new Arc(lastAngle, maxAngLim, pos));
 		}
-		//System.out.println("Count: " + subArcs.size());
-		//System.out.println("Final: " + subArcs.toString());
 		
+		/* IGNORE THIS
 		if(tempSource) {
 			// TEMP
 			pos = oldPos;
 			minAngLim = oldMinAngLim;
 			maxAngLim = oldMaxAngLim;
 		}
-		
+		*/
 		return subArcs;
 	}
 	
@@ -323,27 +310,29 @@ public class Arc {
 		}
 		return 0;
 	}
-
-	private AngVect findBest(ArrayList<AngVect> started, Point dropPoint) {
+	
+	private AngVect findBest(ArrayList<AngVect> started, float raySlope) {
 		AngVect best = null;
 		float bestDist = -1;
 		
 		// cycle through "started" containing all walls that have started
 		for(AngVect newBest: started) {
-			//float newBestDist = judgeDist(fallPoint, newBest.pos, newBest.linkAngVect.pos);
-			float newBestDist = Geo.raySegDist(pos, dropPoint, newBest.pos, newBest.linkAngVect.pos, true);
+			float newBestDist = Geo.raySegDist(pos, raySlope, newBest.pos, newBest.link.pos, true);
 			if(newBestDist < bestDist || bestDist == -1) {
 				best = newBest;
 				bestDist = newBestDist;
 			}
 		}
 		return best;
+		
 	}
-	private AngVect findBest(ArrayList<AngVect> started, float rayAngle) {
-		// used for special cases where only have angle, not point. Avoid since trig used
-		float x = (float) Math.cos(rayAngle);
-		float y = (float) Math.sin(rayAngle);
-		return findBest(started, new Point(x + pos.x, y + pos.y));
+	private AngVect findBest(ArrayList<AngVect> started, float rayAngle, boolean isAng) {
+		if(isAng) {
+			return findBest(started, (float) Math.tan(rayAngle));
+		} else {
+			float raySlope = rayAngle;
+			return findBest(started, raySlope);
+		}
 		
 	}
 	

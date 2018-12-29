@@ -20,7 +20,7 @@ public class Wall {
 		point1 = new Point(x1, y1);
 		point2 = new Point(x2, y2);
 		points = new Point[] {point1, point2};
-		this.angle = Geo.angle(point1, point2);
+		this.updateAngle();
 		
 		walls.add(this);
 		color = new int[] {(int) (Math.random() * 256), (int) (Math.random() * 256), (int) (Math.random() * 256)};
@@ -82,6 +82,7 @@ public class Wall {
 						} else {
 							// move vert
 							point.set(mouse);
+							this.updateAngle();
 						}
 					} else {
 						held = null;
@@ -98,6 +99,10 @@ public class Wall {
 			}
 		}
 	}
+	private void updateAngle() {
+		this.angle = Geo.angle(point1, point2);
+	}
+
 	public static void updateWalls() {
 		for(Wall wall: walls) {
 			wall.update();
@@ -135,5 +140,9 @@ public class Wall {
 		} else {
 			qHeld = false;
 		}
+	}
+
+	public boolean intersects(Point p1, Point p2) {
+		return Geo.intersects(point1, point2, p1, p2);
 	}
 }

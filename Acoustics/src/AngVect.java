@@ -5,7 +5,7 @@ public class AngVect implements Comparable<AngVect>{
 	
 	public float angle;
 	public Point pos;
-	public AngVect linkAngVect;
+	public AngVect link;
 	boolean isMin;
 	public Wall wall;
 	
@@ -15,15 +15,6 @@ public class AngVect implements Comparable<AngVect>{
 		this.wall = wall;
 		this.isMin = isMin;
 	}
-	
-	public AngVect(Point pos, float angle, boolean isMin) {
-		this(pos, angle, null, isMin);
-	}
-
-	public void setLink(AngVect linkAngVect) {
-		this.linkAngVect = linkAngVect;
-	}
-	
 	
 	public String toString() {
 		return "" + angle;

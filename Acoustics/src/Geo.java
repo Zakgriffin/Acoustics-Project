@@ -1,7 +1,14 @@
 public class Geo {
-	private static float z = 0.001f;
 	
 	// A class for holding static geometric type methods
+	
+	private static final float z = 0.001f;
+	private static final float PI = (float) Math.PI;
+	
+	private static final float FULL = PI * 2;
+	private static final float UP = PI + PI / 2;
+	private static final float DOWN = PI / 2;
+	// UP and DOWN are correct since Processing goes clockwise unlike traditional radians
 	
 	public static float slope(Point p1, Point p2) {
 		// Returns the slope between p1 and p2
@@ -11,7 +18,7 @@ public class Geo {
 	public static float angle(Point p1, Point p2) {
 		// Returns the angle from p1 to p2
 		double angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
-		if(angle < 0) angle += Math.PI * 2;
+		if(angle < 0) angle += FULL;
 		return (float) angle;
 	}
 
@@ -49,9 +56,9 @@ public class Geo {
 		return new Point(px, py);
 	}
 	
-	public static float raySegDist(Point ray1, Point rayThru, Point seg1, Point seg2, boolean simp) {
+	public static float raySegDist(Point ray1, float raySlope, Point seg1, Point seg2, boolean simp) {
 		// Returns distance between intersection point of a ray and line segment
-		Point inter = raySegIntersect(ray1, rayThru, seg1, seg2);
+		Point inter = raySegIntersect(ray1, raySlope, seg1, seg2);
 		float deltaX = inter.x - ray1.x;
 		float deltaY = inter.y - ray1.y;
 		
@@ -64,59 +71,75 @@ public class Geo {
 			return (float) Math.sqrt(distSimp);
 		}
 	}
-	public static float raySegDist(Point ray1, Point rayThru, Point seg1, Point seg2) {
-		return raySegDist(ray1, rayThru, seg1, seg2, false);
+	public static float raySegDist(Point ray1, float raySlope, Point seg1, Point seg2) {
+		return raySegDist(ray1, raySlope, seg1, seg2, false);
 	}
 	
-	public static Point raySegIntersect(Point ray1, Point rayThru, Point seg1, Point seg2) {
-		// Returns the intersection point of a ray and line segment
-		float mRay = slope(ray1, rayThru);
-		float mSeg = slope(seg1, seg2);
-		
-		// x and y of intersection point
-		float interX = (mRay * ray1.x - mSeg * seg1.x - ray1.y + seg1.y) / (mRay - mSeg);
-		float interY = mRay * (interX - ray1.x) + ray1.y;
-		
-		return new Point(interX, interY);
-	}
-	public static Point raySegIntersect(Point ray1, float rayAng, Point seg1, Point seg2) {
-		// Returns the intersection point of a ray and line segment
+	public static Point raySegIntersect(Point ray1, float raySlope, Point seg1, Point seg2) {
 		float interX;
 		float interY;
-		float mSeg;
-		float mRay;
-		if(Math.abs(rayAng - Math.PI / 2) < z || Math.abs(rayAng - 3 * Math.PI / 2) < z) {
-			// ray slope is vertical
-			mSeg = slope(seg1, seg2);
+		float segSlope = slope(seg1, seg2);
+		if(raySlope > 1000000) {
+			// line is vertical
 			interX = ray1.x;
-			interY = mSeg * (ray1.x - seg1.x) + seg1.y;
-		} else if(seg1.x == seg2.x) {
-			// seg slope is vertical
-			mRay = (float) Math.tan(rayAng);
-			interX = seg1.x;
-			interY = mRay * (seg1.x - ray1.x) + ray1.y;
-			
+			interY = segSlope * (ray1.x - seg1.x) + seg1.y;
 		} else {
-			// x and y of intersection point
-			mSeg = slope(seg1, seg2);
-			mRay = (float) Math.tan(rayAng);
-			interX = (mRay * ray1.x - mSeg * seg1.x - ray1.y + seg1.y) / (mRay - mSeg);
-			interY = mRay * (interX - ray1.x) + ray1.y;
+			interX = (raySlope * ray1.x - segSlope * seg1.x - ray1.y + seg1.y) / (raySlope - segSlope);
+			interY = raySlope * (interX - ray1.x) + ray1.y;
 		}
 		
 		return new Point(interX, interY);
 	}
-	public static Point raySegIntersect(Point ray1, float rayAng, Point[] seg) {
-		return raySegIntersect(ray1, rayAng, seg[0], seg[1]);
+	
+	public static Point raySegIntersect(Point ray1, Point rayThru, Point seg1, Point seg2) {
+		// Returns the intersection point of a ray and line segment given a thru point for the ray
+		float raySlope = slope(ray1, rayThru);
+		return raySegIntersect(ray1, raySlope, seg1, seg2);
+	}
+	public static Point raySegIntersect(Point ray1, float rayAng, Point seg1, Point seg2, boolean isAng) {
+		// Returns the intersection point of a ray and line segment given an angle for the ray
+		if(isAng) {
+			float interX;
+			float interY;
+			float segSlope;
+			float raySlope;
+			if(Math.abs(rayAng - UP) < z || Math.abs(rayAng - DOWN) < z) {
+				// ray slope is vertical
+				segSlope = slope(seg1, seg2);
+				interX = ray1.x;
+				interY = segSlope * (ray1.x - seg1.x) + seg1.y;
+			} else if(seg1.x == seg2.x) {
+				// seg slope is vertical
+				raySlope = (float) Math.tan(rayAng);
+				interX = seg1.x;
+				interY = raySlope * (seg1.x - ray1.x) + ray1.y;
+				
+			} else {
+				return raySegIntersect(ray1, (float) Math.tan(rayAng), seg1, seg2);
+			}
+			
+			return new Point(interX, interY);
+		} else {
+			// just reference slope method
+			float raySlope = rayAng;
+			return raySegIntersect(ray1, raySlope, seg1, seg2);
+		}
+	}
+	public static Point raySegIntersect(Point ray1, float rayAng, Point[] seg, boolean isAng) {
+		if(isAng) {
+			return raySegIntersect(ray1, rayAng, seg[0], seg[1], true);
+		} else {
+			return raySegIntersect(ray1, rayAng, seg[0], seg[1]);
+		}
 	}
 	
 	public static boolean angleFallsIn(float testAngle, float min, float max) {
 		// Returns whether or not an angle falls within a minimum and maximum range
 		if(min > max) {
-			min -= 2 * Math.PI;
+			min -= FULL;
 		}
 		if(testAngle < min) {
-			testAngle += 2 * Math.PI;
+			testAngle += FULL;
 		}
 		if(testAngle > min && testAngle < max) {
 			return true;
@@ -159,10 +182,10 @@ public class Geo {
 			ang2 += 2 * Math.PI;
 		}*/
 		float result = 2 * ang2 - ang1;
-		if(result > 2 * Math.PI) {
-			result -= 2 * Math.PI;
+		if(result > FULL) {
+			result -= FULL;
 		} else if(result < 0) {
-			result += 2 * Math.PI;
+			result += FULL;
 		}
 		return result;
 	}
@@ -214,7 +237,7 @@ public class Geo {
 	
 	public static boolean firstIsMin(float ang1, float ang2) {
 		// Returns the most CCW angle assuming the angle between both rays is less than 180 degrees
-		return (Math.abs(ang1 - ang2) > Math.PI ^ ang1 - ang2 < 0);
+		return (Math.abs(ang1 - ang2) > PI ^ ang1 - ang2 < 0);
 	}
 	
 	public static boolean pointFallsWithin(Point pCheck, Point p1, Point p2) {
