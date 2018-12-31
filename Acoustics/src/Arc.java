@@ -2,7 +2,14 @@ import java.util.ArrayList;
 import java.util.Collections;
 
 import processing.core.PApplet;
-import processing.core.PConstants;
+
+/*
+ * Current Bugs:
+ * 		generateArcs()
+ *			having right angles for min and max ang lims causes issues
+ * 			some rebound subarcs aren't seeing their wall as non candiates
+ * 
+ */
 
 public class Arc {
 	
@@ -12,7 +19,6 @@ public class Arc {
 	
 	private static PApplet p;
 	private Point pos;
-	private Point rebound;
 	private String type;
 	
 	private float minAngLim;
@@ -21,18 +27,14 @@ public class Arc {
 	float perpDist;
 	
 	private Wall wall;
+	private Wall rebound;
 	
 	public Arc(float minAngLim, float maxAngLim, Wall wall, Point pos, String type) {
-		this.minAngLim = minAngLim;
-		this.maxAngLim = maxAngLim;
+		this.minAngLim = Geo.simpAngle(minAngLim);
+		this.maxAngLim = Geo.simpAngle(maxAngLim);
 		this.wall = wall;
 		this.pos = pos;
 		this.type = type;
-		if(type.equals("passing")) {
-			this.rebound = null;
-		} else {
-			this.rebound = Geo.boost(pos, wall.getPerpPoint(pos));
-		}
 		//arcs.add(this);
 	}
 	public Arc(float minAngLim, float maxAngLim, Wall wall, Point pos) {
@@ -48,13 +50,129 @@ public class Arc {
 	}
 	
 	public void show(float time) {
+		/*
+		//DEBUG
+		float g = 0;
+		if(wall != null) {
+			g = wall.color[0] / 10f;
+		}
+		p.ellipse(pos.x, pos.y, 5 + g, 5 + g);
+		*/
+		
+		float outerMin = minAngLim;
+		float innerMin = -1; // <-- -1 used as flag
+		float innerMax = -1;
+		float outerMax = maxAngLim;
+		
+		// stuff for rebound walls
+		if(rebound != null) {
+			// arc is not from source
+			Point[] rebInters = Geo.segCircIntersects(rebound.getPoints(), pos, time);
+			if(rebInters == null) {
+				// arc has not traveled far enough to display
+				return;
+			}
+			AngVect[] rebOrd = orderMinMax(rebInters, pos);
+			float minAng = rebOrd[0].angle;
+			float maxAng = rebOrd[1].angle;
+			if(!minLimFallsIn(minAng, maxAng) && !maxLimFallsIn(minAng, maxAng)) {
+				// arc still has not traveled far enough to display
+				return;
+			}
+			if(angleInMinMax(minAng)) {
+				outerMin = minAng;
+			}
+			if(angleInMinMax(maxAng)) {
+				outerMax = maxAng;
+			}
+		}
+		
+		// stuff for walls that arcs crash into
+		if(!type.equals("passing")) {
+			Point[] wallInters =  Geo.segCircIntersects(wall.getPoints(), pos, time);
+			if(wallInters != null) {
+				AngVect[] wallOrd = orderMinMax(wallInters, pos);
+				float minAng = wallOrd[0].angle;
+				float maxAng = wallOrd[1].angle;
+				if(minLimFallsIn(minAng, maxAng) && maxLimFallsIn(minAng, maxAng)) {
+					// arc has traveled too far to display
+					return;
+				}
+				if(angleInMinMax(minAng)) {
+					innerMin = minAng;
+				}
+				if(angleInMinMax(maxAng)) {
+					innerMax = maxAng;
+				}
+			}
+		}
+		
+		p.pushStyle();
+			// assign colors
+			p.noFill();
+			if(!type.equals("passing")) {
+				int[] w = wall.color;
+				p.stroke(w[0], w[1], w[2]);
+			} else {
+				p.stroke(255);
+			}
+			/*
+			// "blended" color scheme
+			int[] r = {255, 255, 255};
+			if(rebound != null) {
+				r = rebound.color;
+			}
+			
+			if(!type.equals("passing")) {
+				int[] w = wall.color;
+				p.stroke(blend(r[0], w[0], 2), blend(r[1], w[1], 2), blend(r[2], w[2], 2));
+			} else {
+				p.stroke(blend(r[0], 255, 2), blend(r[1], 255, 2), blend(r[2], 255, 2));
+			}
+			*/
+			
+			// draw final arcs
+			if(innerMin == -1 && innerMax == -1) {
+				// single arc
+				arc(pos.x, pos.y, time * 2, outerMin, outerMax);
+			} else {
+				// partial arcs
+				if(innerMin != -1) {
+					arc(pos.x, pos.y, time * 2, outerMin, innerMin);
+				}
+				if(innerMax != -1) {
+					arc(pos.x, pos.y, time * 2, innerMax, outerMax);
+				}
+			}
+		p.popStyle();
+	}
+	
+	private static int blend(int start, int with, int weight) {
+		int result = start * weight;
+		result += with;
+		result /= weight + 1;
+		
+		return result;
+	}
+	
+	private boolean angleInMinMax(float angle) {
+		return Geo.angleFallsIn(angle, minAngLim, maxAngLim);
+	}
+	private boolean minLimFallsIn(float minAng, float maxAng) {
+		return Geo.angleFallsIn(minAngLim, minAng, maxAng);
+	}
+	private boolean maxLimFallsIn(float minAng, float maxAng) {
+		return Geo.angleFallsIn(maxAngLim, minAng, maxAng);
+	}
+	/*
+	public void showOld(float time) {
 		p.pushStyle();
 		if(!type.equals("passing")) {
 			// reflective arc
 			
 			int[] a = wall.color;
-			p.fill(a[0], a[1], a[2], 60);
-			//p.noFill();
+			//p.fill(a[0], a[1], a[2], 60);
+			p.noFill();
 			p.stroke(a[0], a[1], a[2]);
 			
 			// get the intersection points between walls and arcs
@@ -73,7 +191,7 @@ public class Arc {
 			
 			if(simpleArc) {//simpleArc
 				// arc has no interaction with wall and can be rendered simply
-				p.arc(pos.x, pos.y, time * 2, time * 2, minAngLim, maxAngLim);
+				arc(pos.x, pos.y, time * 2, minAngLim, maxAngLim);
 			} else {
 				// arc is split into 3 pieces: 2 small arcs, 1 triangle
 				AngVect[] limits = orderMinMax(inters, pos);
@@ -84,14 +202,14 @@ public class Arc {
 				
 				if(Geo.angleFallsIn(minAng, minAngLim, maxAngLim)) {
 					// ensure intersection point is touching wall
-					p.arc(pos.x, pos.y, time * 2, time * 2, minAngLim, minAng);
+					arc(pos.x, pos.y, time * 2, minAngLim, minAng);
 				} else {
 					// if not, don't draw arc part and make triangle use wall end point
 					pMin = Geo.raySegIntersect(pos, minAngLim, wall.getPoints(), true);
 				}
 				// repeat ^
 				if(Geo.angleFallsIn(maxAng, minAngLim, maxAngLim)) {
-					p.arc(pos.x, pos.y, time * 2, time * 2, maxAng, maxAngLim);
+					arc(pos.x, pos.y, time * 2, maxAng, maxAngLim);
 				} else {
 					pMax = Geo.raySegIntersect(pos, maxAngLim, wall.getPoints(), true);
 				}
@@ -105,31 +223,12 @@ public class Arc {
 			// passing arc
 			p.noFill();
 			p.stroke(255);
-			p.arc(pos.x, pos.y, time * 2, time * 2, minAngLim, maxAngLim);
+			arc(pos.x, pos.y, time * 2, minAngLim, maxAngLim);
 		}
 		p.popStyle();
-		
-		
-		/*
-		if(rebound != null) {
-			
-			if(time > perpDist) {
-				Point r = rebound;
-				float ang = wall.getAngle();
-				float min = Geo.angleBoost(maxAngLim, ang);
-				float max = Geo.angleBoost(minAngLim, ang);
-				if(min > max) {
-					max += 2 * Math.PI;
-				}
-				p.arc(r.x, r.y, time * 2, time * 2, min, max, PConstants.PIE);
-				p.ellipse(r.x, r.y, 5, 5);
-			} else {
-				
-			}
-			p.arc(pos.x, pos.y, time * 2, time * 2, minAngLim, maxAngLim, PConstants.PIE);
-		}
-		*/
 	}
+	*/
+	
 	
 	private AngVect[] orderMinMax(Point[] unorg, Point view, Wall wall) {
 		Point pMin = unorg[0];
@@ -163,32 +262,25 @@ public class Arc {
 	}
 	
 	public ArrayList<Arc> generateArcs(String mode) {
-		/*  IGNORE THIS
-		Point oldPos = pos;
-		float oldMinAngLim = minAngLim;
-		float oldMaxAngLim = maxAngLim;
-		
-		boolean tempSource = !mode.equals("source") && !type.equals("passing");
-		
-		if(tempSource) {
-			// TEMP
-			pos = Geo.boost(pos, wall.getPerpPoint(pos));
-			minAngLim = Geo.angleBoost(maxAngLim, wall.getAngle());
-			maxAngLim = Geo.angleBoost(minAngLim, wall.getAngle());
-			if(maxAngLim < minAngLim) {
-				maxAngLim += Math.PI * 2;
-			}
-		}
-		*/
-		
 		ArrayList<AngVect> angs = new ArrayList<AngVect>();
 		ArrayList<AngVect> started = new ArrayList<AngVect>();
+		int wallOrient = 0;
 		
-		for(Wall wall: Wall.walls) {
+		if(rebound != null) {
+			wallOrient = Geo.orientation(rebound.getPoints(), pos);
+		}
+		
+		for(Wall wallCheck: Wall.walls) {
 			// create and add all AngVects to angs and started lists
-			AngVect[] wallPoints = orderMinMax(wall, pos);
+			
+			AngVect[] wallPoints = orderMinMax(wallCheck, pos);
 			AngVect min = wallPoints[0];
 			AngVect max = wallPoints[1];
+			
+			if(rebound != null && isBehindRebound(wallPoints, wallOrient)) {
+				// wall is invalid and should be skipped
+				continue;
+			}
 			
 			if(Geo.angleFallsIn(min.angle, minAngLim, maxAngLim)) {
 				angs.add(min);
@@ -290,24 +382,47 @@ public class Arc {
 			subArcs.add(new Arc(lastAngle, maxAngLim, pos));
 		}
 		
-		/* IGNORE THIS
-		if(tempSource) {
-			// TEMP
-			pos = oldPos;
-			minAngLim = oldMinAngLim;
-			maxAngLim = oldMaxAngLim;
+		if(rebound != null) {
+			// used for drawing arcs to know where to start
+			for(Arc arc: subArcs) {
+				arc.setRebound(rebound);
+			}
 		}
-		*/
 		return subArcs;
+	}
+	
+	public Arc mirrorArc() {
+		Point newPos = Geo.boost(pos, wall.getPerpPoint(pos));
+		float newMin = Geo.angleBoost(maxAngLim, wall.getAngle());
+		float newMax = Geo.angleBoost(minAngLim, wall.getAngle());
+		Arc mirror = new Arc(newMin, newMax, newPos);
+		mirror.setRebound(wall);
+		return mirror;
+	}
+	
+	private boolean isBehindRebound(AngVect[] tests, int wallOrient) {
+		// returns whether or not testWall is behind rebound and should not be considered
+		if(tests[0].wall == rebound) {
+			return true;
+		}
+		for(AngVect test: tests) {
+			if(wallOrient == Geo.orientation(rebound.getPoints(), test.pos)) {
+				return true;
+			}
+		}
+		
+		return false;
 	}
 	
 	private int getRotatePoint(ArrayList<AngVect> list) {
 		// Returns an index to rotate list by
-		for(int i = list.size() - 1; i > 0; i--) {
-			if(list.get(i).angle < maxAngLim) {
-				return i + 1;
+		
+		for(int i = 0; i < list.size(); i++) {
+			if(list.get(i).angle > minAngLim) {
+				return list.size() - i;
 			}
 		}
+		
 		return 0;
 	}
 	
@@ -336,6 +451,13 @@ public class Arc {
 		
 	}
 	
+	public static void arc(float x, float y, float r, float min, float max) {
+		// used instead of just calling p.arc since is max is less than min, nothing displays
+		if(max < min) {
+			max += Math.PI * 2;
+		}
+		p.arc(x, y, r, r, min, max);
+	}
 	
 	public Point getPos() {
 		return pos;
@@ -364,7 +486,8 @@ public class Arc {
 	public String getType() {
 		return type;
 	}
-	public Point getRebound() {
-		return rebound;
+	
+	private void setRebound(Wall rebound) {
+		this.rebound = rebound;
 	}
 }

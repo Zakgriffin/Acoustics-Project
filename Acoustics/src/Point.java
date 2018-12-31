@@ -46,6 +46,9 @@ public class Point {
 	public boolean fallsWithin(Point p1, Point p2) {
 		return Geo.pointFallsWithin(this, p1, p2);
 	}
+	public boolean fallsWithin(Point[] points) {
+		return fallsWithin(points[0], points[1]);
+	}
 	
 	public String toString() {
 		return "(" + x + ", " + y + ")";

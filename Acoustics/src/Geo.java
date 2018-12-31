@@ -74,6 +74,14 @@ public class Geo {
 	public static float raySegDist(Point ray1, float raySlope, Point seg1, Point seg2) {
 		return raySegDist(ray1, raySlope, seg1, seg2, false);
 	}
+	public static float raySegDist(Point ray1, float rayAng, Point[] seg, boolean isAng) {
+		if(isAng) {
+			return raySegDist(ray1, (float) Math.tan(rayAng), seg[0], seg[1]);
+		} else {
+			float raySlope = rayAng;
+			return raySegDist(ray1, raySlope, seg[0], seg[1]);
+		}
+	}
 	
 	public static Point raySegIntersect(Point ray1, float raySlope, Point seg1, Point seg2) {
 		float interX;
@@ -133,18 +141,27 @@ public class Geo {
 		}
 	}
 	
-	public static boolean angleFallsIn(float testAngle, float min, float max) {
+	public static boolean angleFallsIn(float testAng, float min, float max) {
 		// Returns whether or not an angle falls within a minimum and maximum range
-		if(min > max) {
-			min -= FULL;
-		}
-		if(testAngle < min) {
-			testAngle += FULL;
-		}
-		if(testAngle > min && testAngle < max) {
+		testAng -= min;
+		testAng = simpAngle(testAng);
+		max -= min;
+		max = simpAngle(max);
+		
+		if(testAng > 0 && testAng < max) {
 			return true;
 		}
 		return false;
+	}
+	
+	public static float simpAngle(float ang) {
+		// Returns ang within a range of 0 and 2pi
+		if(ang < 0) {
+			ang += FULL;
+		} else if(ang > FULL) {
+			ang -= FULL;
+		}
+		return ang;
 	}
 	
 	public static int orientation(Point p, Point q, Point r) {
@@ -158,6 +175,9 @@ public class Geo {
 	    } else {
 	    	return -1; //CCW
 	    }
+	}
+	public static int orientation(Point[] seg, Point r) {
+		return orientation(seg[0], seg[1], r);
 	}
 	
 	public static boolean intersects(Point p1, Point q1, Point p2, Point q2) {
@@ -182,11 +202,7 @@ public class Geo {
 			ang2 += 2 * Math.PI;
 		}*/
 		float result = 2 * ang2 - ang1;
-		if(result > FULL) {
-			result -= FULL;
-		} else if(result < 0) {
-			result += FULL;
-		}
+		result = simpAngle(result);
 		return result;
 	}
 	
@@ -233,6 +249,9 @@ public class Geo {
 			// line doesn't touch circle or is tangent (treat tangent as no touch)
 			return null;
 		}
+	}
+	public static Point[] segCircIntersects(Point[] seg, Point C, float R) {
+		return segCircIntersects(seg[0], seg[1], C, R);
 	}
 	
 	public static boolean firstIsMin(float ang1, float ang2) {

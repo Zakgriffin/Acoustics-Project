@@ -14,7 +14,18 @@ public class Main extends PApplet {
 		size(500, 500);
 		pixelDensity(2);
 	}
+	
 	public void setup() {
+		setupFunc();
+		//setupDebug();
+	}
+	
+	public void draw() {
+		drawFunc();
+		//drawDebug();
+	}
+	
+	public void setupFunc() {
 		Wall.setP(this);
 		Arc.setP(this);
 		
@@ -34,7 +45,7 @@ public class Main extends PApplet {
 		new Wall(150, 225, 340, 225);
 		*/
 		
-		wave = new Arc(0.3f, 3 * PI / 2 - 0.4f, null);
+		wave = new Arc(0.3f, 3 * PI / 2 - 0.4f, null);//0.3f, 3 * PI / 2 - 0.4f
 		wave.setPos(new Point(250, 150));
 		
 		//new Wall(150, 400, 340, 350);
@@ -42,9 +53,10 @@ public class Main extends PApplet {
 	
 	float time = 0;
 	float offset = 1f;
-	public void draw() {
+	
+	public void drawFunc() {
 		background(0);
-		strokeWeight(2);
+		//strokeWeight(2);
 		if(keyPressed) {
 			Wall.keyPressed(key);
 		} else {
@@ -73,35 +85,14 @@ public class Main extends PApplet {
 		popStyle();
 		for(Arc arc: arcs) {
 			arc.show(time);
-			/*
 			if(!arc.getType().equals("passing")) {
-				
-				ArrayList<Arc> secArcs = arc.generateArcs("");
-				
-				for(Arc secArc: secArcs) {
-					//secArc.show(time);
-					arc(secArc.getPos().x, secArc.getPos().y, 60, 60, secArc.getMinLim(), secArc.getMaxLim());
+				ArrayList<Arc> arcs2 = arc.mirrorArc().generateArcs("");
+				for(Arc arc2: arcs2) {
+					arc2.show(time);
 				}
-				
-				// v
-				Wall wall = arc.getWall();
-				Point p = Geo.boost(arc.getPos(), wall.getPerpPoint(arc.getPos()));
-				float min = Geo.angleBoost(arc.getMaxLim(), wall.getAngle());
-				float max = Geo.angleBoost(arc.getMinLim(), wall.getAngle());
-				if(max < min) {
-					max += PI * 2;
-				}
-				System.out.println("Min: " +  Math.toDegrees(min) + "  Max: " + Math.toDegrees(max));
-				
-				arc(p.x, p.y, 60, 60, min, max);
-				// ^
-				
 			}
-			*/
-			
 		}
 		//System.out.println("FPS: " + frameRate);
-		
 	}
 	
 	public void mouseClicked() {
@@ -113,5 +104,39 @@ public class Main extends PApplet {
 		if(time < 0) {
 			time = 0;
 		}
+	}
+	
+	Point c;
+	Wall min;
+	Wall max;
+	public void setupDebug() {
+		Wall.setP(this);
+		Arc.setP(this);
+		
+		c = new Point(width / 2, height / 2);
+		
+		min = new Wall(c.x, c.y, c.x + 40, c.y);
+		max = new Wall(c.x, c.y, c.x, c.y + 40);
+	}
+	
+	public void drawDebug() {
+		background(0);
+		
+		if(keyPressed) {
+			Wall.keyPressed(key);
+		} else {
+			Wall.keyPressed('-');
+		}
+		Wall.showWalls();
+		Wall.updateWalls();
+		
+		Point mouse = new Point(mouseX, mouseY);
+		
+		stroke(255);
+		line(c.x, c.y, mouse.x, mouse.y);
+		
+		System.out.println("MinAng: " + Math.toDegrees(min.getAngle()));
+		System.out.println("MaxAng: " + Math.toDegrees(max.getAngle()));
+		System.out.println(Geo.angleFallsIn(c.angleTo(mouse), min.getAngle(), max.getAngle()));
 	}
 }
