@@ -5,33 +5,35 @@ import processing.event.MouseEvent;
 
 public class Main extends PApplet {
 	Arc wave;
-	Wall wall;
+	
 	public static void main(String[] args) {
 		PApplet.main("Main");
 	}
 	
 	public void settings() {
+		// Processing canvas initialization
 		size(500, 500);
 		pixelDensity(2);
 	}
 	
 	public void setup() {
-		setupFunc();
-		//setupDebug();
+		// Called once on startup
+		startup();
+		//startupDebug();
 	}
 	
 	public void draw() {
-		drawFunc();
-		//drawDebug();
+		// Called periodically around 60 times a second
+		periodic();
+		//periodicDebug();
 	}
 	
-	public void setupFunc() {
+	private void startup() {
 		Wall.setP(this);
 		Arc.setP(this);
 		
 		new Wall(200, 100, 270, 100);
 		new Wall(160, 130, 190, 200);
-		
 		new Wall(350, 130, 300, 200);
 		new Wall(200, 300, 250, 300);
 		new Wall(120, 230, 145, 190);
@@ -52,11 +54,11 @@ public class Main extends PApplet {
 	}
 	
 	float time = 0;
-	float offset = 1f;
+	float increment = 5f;
 	
-	public void drawFunc() {
+	private void periodic() {
 		background(0);
-		//strokeWeight(2);
+		strokeWeight(2);
 		if(keyPressed) {
 			Wall.keyPressed(key);
 		} else {
@@ -64,9 +66,9 @@ public class Main extends PApplet {
 		}
 		if(keyPressed) {
 			if (key == 'w') {
-				time += offset;
+				time += increment;
 			} else if(key == 's') {
-				time -= offset;
+				time -= increment;
 			}
 			if(time < 0) {
 				time = 0;
@@ -76,29 +78,50 @@ public class Main extends PApplet {
 		Wall.updateWalls();
 		
 		wave.setPos(mouseX, mouseY);
-		ArrayList<Arc> arcs = wave.generateArcs("source");
 		pushStyle();
 			fill(255, 150);
 			stroke(255);
 			arc(wave.getPos().x, wave.getPos().y, 30, 30, wave.getMaxLim() - TWO_PI, wave.getMinLim());
-			
 		popStyle();
+		
+		ArrayList<Arc> arcs = wave.generateArcs();
+		recurseArcs(arcs, time); // <-- big boi method here
+		System.out.println("Number of arcs: " + arcCount);
+		arcCount = 0;
+		/*
 		for(Arc arc: arcs) {
 			arc.show(time);
 			if(!arc.getType().equals("passing")) {
-				ArrayList<Arc> arcs2 = arc.mirrorArc().generateArcs("");
+				ArrayList<Arc> arcs2 = arc.mirrorArc().generateArcs();
 				for(Arc arc2: arcs2) {
 					arc2.show(time);
 				}
 			}
 		}
+		*/
 		//System.out.println("FPS: " + frameRate);
 	}
 	
+	private static int arcCount = 0;
+	private static void recurseArcs(ArrayList<Arc> arcs, float time) {
+		for(Arc arc: arcs) {
+			arcCount++;
+			arc.show(time);
+			if(arc.hasTouched(time)) {
+				// arc has touched its wall, break into sub arcs
+				ArrayList<Arc> subArcs = arc.mirrorArc().generateArcs();
+				// call self with new subarcs
+				recurseArcs(subArcs, time);
+			}
+		}
+	}
+	
 	public void mouseClicked() {
+		// Used to quickly reset time
 		time = 0;
 	}
 	public void mouseWheel(MouseEvent event) {
+		// Increases or decreases time based on scroll
 		float e = event.getCount();
 		time -= e;
 		if(time < 0) {
@@ -109,7 +132,7 @@ public class Main extends PApplet {
 	Point c;
 	Wall min;
 	Wall max;
-	public void setupDebug() {
+	private void startupDebug() {
 		Wall.setP(this);
 		Arc.setP(this);
 		
@@ -119,7 +142,7 @@ public class Main extends PApplet {
 		max = new Wall(c.x, c.y, c.x, c.y + 40);
 	}
 	
-	public void drawDebug() {
+	private void periodicDebug() {
 		background(0);
 		
 		if(keyPressed) {

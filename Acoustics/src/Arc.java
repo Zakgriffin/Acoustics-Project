@@ -5,10 +5,13 @@ import processing.core.PApplet;
 
 /*
  * Current Bugs:
+ *		* Understood and being fixed
+ *		• Still looking into source of issue
+ *
  * 		generateArcs()
- *			having right angles for min and max ang lims causes issues
- * 			some rebound subarcs aren't seeing their wall as non candiates
- * 
+ *			• having right angles for min and max angle limits causes issues
+ *			* closed shapes formed by walls sometimes seem to have small
+ *				holes in connections or create large arcs that ignore some walls
  */
 
 public class Arc {
@@ -108,43 +111,72 @@ public class Arc {
 		}
 		
 		p.pushStyle();
-			// assign colors
 			p.noFill();
+			if(rebound != null) {
+				int[] r = rebound.color;
+				p.stroke(r[0], r[1], r[2]);
+			} else {
+				p.stroke(0);
+			}
+			arcDisplay(time - 1f, outerMin, innerMin, innerMax, outerMax);
+			
+			// assign colors and draw final arcs
 			if(!type.equals("passing")) {
 				int[] w = wall.color;
 				p.stroke(w[0], w[1], w[2]);
 			} else {
 				p.stroke(255);
 			}
-			/*
-			// "blended" color scheme
-			int[] r = {255, 255, 255};
-			if(rebound != null) {
-				r = rebound.color;
-			}
 			
-			if(!type.equals("passing")) {
-				int[] w = wall.color;
-				p.stroke(blend(r[0], w[0], 2), blend(r[1], w[1], 2), blend(r[2], w[2], 2));
-			} else {
-				p.stroke(blend(r[0], 255, 2), blend(r[1], 255, 2), blend(r[2], 255, 2));
-			}
-			*/
-			
-			// draw final arcs
-			if(innerMin == -1 && innerMax == -1) {
-				// single arc
-				arc(pos.x, pos.y, time * 2, outerMin, outerMax);
-			} else {
-				// partial arcs
-				if(innerMin != -1) {
-					arc(pos.x, pos.y, time * 2, outerMin, innerMin);
-				}
-				if(innerMax != -1) {
-					arc(pos.x, pos.y, time * 2, innerMax, outerMax);
-				}
-			}
+			arcDisplay(time, outerMin, innerMin, innerMax, outerMax);
 		p.popStyle();
+	}
+	private void arcDisplay(float time, float outerMin, float innerMin, float innerMax, float outerMax) {
+		if(innerMin == -1 && innerMax == -1) {
+			// single arc
+			arc(pos.x, pos.y, time * 2, outerMin, outerMax);
+		} else {
+			// partial arcs
+			if(innerMin != -1) {
+				arc(pos.x, pos.y, time * 2, outerMin, innerMin);
+			}
+			if(innerMax != -1) {
+				arc(pos.x, pos.y, time * 2, innerMax, outerMax);
+			}
+		}
+	}
+	
+	public boolean hasCrossed(float time) {
+		// Returns whether or not this arc has crossed its wall
+		return hasDone(time, "cross");
+	}
+	
+	public boolean hasTouched(float time) {
+		// Returns whether or not this arc has touched its wall
+		return hasDone(time, "touch");
+	}
+	
+	private boolean hasDone(float time, String action) {
+		if(!type.equals("passing")) {
+			Point[] wallInters =  Geo.segCircIntersects(wall.getPoints(), pos, time);
+			if(wallInters != null) {
+				AngVect[] wallOrd = orderMinMax(wallInters, pos);
+				float minAng = wallOrd[0].angle;
+				float maxAng = wallOrd[1].angle;
+				if(action.equals("cross")) {
+					// extension of  hasCrossed() function
+					if(minLimFallsIn(minAng, maxAng) && maxLimFallsIn(minAng, maxAng)) {
+						return true;
+					}
+				} else if(action.equals("touch")){
+					// extension of hasTouched() function
+					if(angleInMinMax(minAng) || angleInMinMax(maxAng) || minLimFallsIn(minAng, maxAng)) {
+						return true;
+					}
+				}
+			}
+		}
+		return false;
 	}
 	
 	private static int blend(int start, int with, int weight) {
@@ -165,7 +197,8 @@ public class Arc {
 		return Geo.angleFallsIn(maxAngLim, minAng, maxAng);
 	}
 	/*
-	public void showOld(float time) {
+	public void showWithFill(float time) {
+		// Mostly used for debugging
 		p.pushStyle();
 		if(!type.equals("passing")) {
 			// reflective arc
@@ -261,7 +294,7 @@ public class Arc {
 		return orderMinMax(wall.getPoints(), view, wall);
 	}
 	
-	public ArrayList<Arc> generateArcs(String mode) {
+	public ArrayList<Arc> generateArcs() {
 		ArrayList<AngVect> angs = new ArrayList<AngVect>();
 		ArrayList<AngVect> started = new ArrayList<AngVect>();
 		int wallOrient = 0;
