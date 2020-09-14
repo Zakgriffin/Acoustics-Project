@@ -1,5 +1,5 @@
 # Acoustics-Project
-Yeah, this thing should like make sound do seeing stuff
+A visualization for arcs of sound bouncing around a room composed of line segments
 
 Use this link to help install the Processing library used for graphics:
 
